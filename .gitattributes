@@ -1,0 +1,16 @@
+# Normalize line endings to LF on commit, no BOM
+* text=auto eol=lf
+
+# Explicitly mark text files
+*.js    text eol=lf
+*.json  text eol=lf
+*.html  text eol=lf
+*.css   text eol=lf
+*.md    text eol=lf
+*.toml  text eol=lf
+
+# Binary files — never touch
+*.tif   binary
+*.tiff  binary
+*.geojson text eol=lf
+*.pmtiles binary

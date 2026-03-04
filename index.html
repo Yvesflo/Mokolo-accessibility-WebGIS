@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>District de Santé de Mokolo — Accessibilité &amp; Couverture</title>
+  <link href="https://unpkg.com/maplibre-gl@5.0.0/dist/maplibre-gl.css" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Map container -->
+  <div id="map">
+    <!-- Credentials overlay on the live map -->
+    <div id="map-credits">© MINSANTE/DOST : Yves Wasnyo 2026 &nbsp;|&nbsp; Hydrosheds · Copernicus · OSM · Sentinel 2 · GHSL · WOF</div>
+  </div>
+
+  <!-- Side panel -->
+  <div id="panel">
+    <div id="panel-header">
+      <h1>District de Santé de Mokolo</h1>
+      <p>Accessibilité &amp; Couverture — Établissements Publics</p>
+    </div>
+
+    <!-- ── Layer toggles ───────────────────────────────────── -->
+    <div class="panel-section">
+      <h2>Couches</h2>
+
+      <!-- Accessibility raster -->
+      <div class="raster-block">
+        <label class="toggle-row">
+          <input type="checkbox" id="toggle-accessibility" />
+          <span class="toggle-label">Accessibilité (temps de trajet)</span>
+        </label>
+        <div class="raster-controls">
+          <div class="ctrl-row">
+            <span class="ctrl-label">Opacité</span>
+            <input type="range" id="opacity-accessibility" min="0" max="100" value="80" class="slider" />
+            <span class="ctrl-val" id="opacity-val-accessibility">80%</span>
+          </div>
+          <div class="ctrl-row">
+            <span class="ctrl-label">Min (min)</span>
+            <input type="range" id="filter-access-min" min="0" max="240" value="0" class="slider" />
+            <span class="ctrl-val" id="fval-access-min">0</span>
+          </div>
+          <div class="ctrl-row">
+            <span class="ctrl-label">Max (min)</span>
+            <input type="range" id="filter-access-max" min="0" max="240" value="240" class="slider" />
+            <span class="ctrl-val" id="fval-access-max">240</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Residual population raster -->
+      <div class="raster-block">
+        <label class="toggle-row">
+          <input type="checkbox" id="toggle-residual" />
+          <span class="toggle-label">Population résiduelle non couverte</span>
+        </label>
+        <div class="raster-controls">
+          <div class="ctrl-row">
+            <span class="ctrl-label">Opacité</span>
+            <input type="range" id="opacity-residual" min="0" max="100" value="80" class="slider" />
+            <span class="ctrl-val" id="opacity-val-residual">80%</span>
+          </div>
+          <div class="ctrl-row">
+            <span class="ctrl-label">Min (hab)</span>
+            <input type="range" id="filter-resid-min" min="0" max="700" value="0" class="slider" />
+            <span class="ctrl-val" id="fval-resid-min">0</span>
+          </div>
+          <div class="ctrl-row">
+            <span class="ctrl-label">Max (hab)</span>
+            <input type="range" id="filter-resid-max" min="0" max="700" value="700" class="slider" />
+            <span class="ctrl-val" id="fval-resid-max">700</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Population density raster -->
+      <div class="raster-block">
+        <label class="toggle-row">
+          <input type="checkbox" id="toggle-population" />
+          <span class="toggle-label">Densité de population (hab/km²)</span>
+        </label>
+        <div class="raster-controls">
+          <div class="ctrl-row">
+            <span class="ctrl-label">Opacité</span>
+            <input type="range" id="opacity-population" min="0" max="100" value="80" class="slider" />
+            <span class="ctrl-val" id="opacity-val-population">80%</span>
+          </div>
+          <div class="ctrl-row">
+            <span class="ctrl-label">Min (hab)</span>
+            <input type="range" id="filter-pop-min" min="0" max="1000" value="0" class="slider" />
+            <span class="ctrl-val" id="fval-pop-min">0</span>
+          </div>
+          <div class="ctrl-row">
+            <span class="ctrl-label">Max (hab)</span>
+            <input type="range" id="filter-pop-max" min="0" max="1000" value="1000" class="slider" />
+            <span class="ctrl-val" id="fval-pop-max">1000</span>
+          </div>
+        </div>
+      </div>
+
+      <span id="raster-loading" class="raster-loading-badge" style="display:none;">⏳ Chargement rasters…</span>
+
+      <label class="toggle-row">
+        <input type="checkbox" id="toggle-coverage" checked />
+        <span class="toggle-label">Zones de couverture hospitalière</span>
+      </label>
+      <label class="toggle-row">
+        <input type="checkbox" id="toggle-ref-csi" checked />
+        <span class="toggle-label">Routes de référence CSI → CMA</span>
+      </label>
+      <label class="toggle-row">
+        <input type="checkbox" id="toggle-ref-cma" checked />
+        <span class="toggle-label">Routes de référence CMA → HD/HR</span>
+      </label>
+      <label class="toggle-row">
+        <input type="checkbox" id="toggle-facilities" checked />
+        <span class="toggle-label">Établissements de santé</span>
+      </label>
+      <label class="toggle-row">
+        <input type="checkbox" id="toggle-settlements" checked />
+        <span class="toggle-label">Localités / Agglomérations</span>
+      </label>
+      <label class="toggle-row">
+        <input type="checkbox" id="toggle-aires" checked />
+        <span class="toggle-label">Aires de santé</span>
+      </label>
+      <label class="toggle-row">
+        <input type="checkbox" id="toggle-district" checked />
+        <span class="toggle-label">Limite du district</span>
+      </label>
+    </div>
+
+    <!-- ── Search aire de santé ────────────────────────────── -->
+    <div class="panel-section">
+      <h2>Recherche — Aire de santé</h2>
+      <div class="search-row">
+        <input type="text" id="search-aire" placeholder="Nom de l'aire de santé…" />
+        <button id="search-clear" class="icon-btn" title="Effacer la sélection">✕</button>
+      </div>
+      <ul id="search-results"></ul>
+      <!-- Filter active badge -->
+      <div id="aire-filter-badge" style="display:none;" class="filter-badge">
+        <span id="aire-filter-label">—</span>
+        <button id="aire-filter-clear" class="icon-btn" title="Réinitialiser le filtre">✕ Réinitialiser</button>
+      </div>
+    </div>
+
+    <!-- ── Legend ──────────────────────────────────────────── -->
+    <div class="panel-section">
+      <h2>Légende</h2>
+      <div id="legend-content"></div>
+    </div>
+
+    <!-- ── Info box for clicked features ─────────────────── -->
+    <div class="panel-section" id="info-box" style="display:none;">
+      <h2>Information</h2>
+      <div id="info-content"></div>
+    </div>
+
+    <!-- ── Export ─────────────────────────────────────────── -->
+    <div class="panel-section">
+      <h2>Exporter la carte</h2>
+      <div class="export-row">
+        <button id="btn-png" class="dl-btn">⬇ PNG</button>
+        <button id="btn-pdf" class="dl-btn">⬇ PDF</button>
+      </div>
+      <div id="export-status" class="export-status"></div>
+    </div>
+
+    <!-- ── Credits ────────────────────────────────────────── -->
+    <div class="panel-section credits-section">
+      <p>© MINSANTE/DOST : <strong>Yves Wasnyo</strong> 2026</p>
+      <p class="sources">Sources : Hydrosheds · Copernicus · OSM · Sentinel 2 · GHSL · WOF</p>
+    </div>
+
+  </div><!-- /panel -->
+
+  <script type="module" src="main.js"></script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+[build]
+  command   = "npm run build"
+  publish   = "dist"
+
+# Required security headers so GeoTIFF rasters render correctly
+# (georaster needs SharedArrayBuffer / cross-origin isolation)
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Cross-Origin-Opener-Policy   = "same-origin"
+    Cross-Origin-Embedder-Policy = "require-corp"
+    Cross-Origin-Resource-Policy = "cross-origin"
+
+# Cache static assets (JS/CSS chunks) for 1 year
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Cache data files (GeoJSON / TIF) for 1 day
+[[headers]]
+  for = "/data/*"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"
+
+# SPA fallback — serve index.html for any unmatched route
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 200

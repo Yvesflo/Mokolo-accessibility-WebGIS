@@ -1,0 +1,23 @@
+{
+  "name": "mokolo-health-map",
+  "version": "1.0.0",
+  "description": "Accessibility and coverage analysis - Health District of Mokolo",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "geotiff": "^2.1.3",
+    "georaster": "^1.6.0",
+    "jspdf": "^4.0.0",
+    "maplibre-gl": "^5.0.0",
+    "pmtiles": "^4.0.0",
+    "proj4": "^2.12.0"
+  },
+  "devDependencies": {
+    "vite": "^7.0.0",
+    "vite-plugin-static-copy": "^2.0.0"
+  }
+}
