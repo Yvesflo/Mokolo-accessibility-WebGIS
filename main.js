@@ -881,13 +881,25 @@ function buildLegends() {
     });
     refBk.appendChild(row);
   });
-  // CSI→CMA vs CMA→HD labels
-  const infoRow=document.createElement('div');
-  infoRow.style.cssText='font-size:10px;color:#484f58;padding:4px 5px;';
-  infoRow.innerHTML=
-    '<span style="display:inline-block;width:20px;height:3px;background:#555;margin-right:4px;vertical-align:middle;border-top:2px dashed #888"></span>CSI→CMA (pointillé) &nbsp; '+
-    '<span style="display:inline-block;width:20px;height:3px;background:#555;margin-right:4px;vertical-align:middle"></span>CMA→HD/HR';
-  refBk.appendChild(infoRow);
+  // CSI→CMA (dashed) vs CMA→HD/HR (solid) — route type rows
+  const typeLabel=document.createElement('div');
+  typeLabel.style.cssText='font-size:10px;color:#6e7681;padding:3px 5px 1px;font-style:italic;';
+  typeLabel.textContent='Type de route :';
+  refBk.appendChild(typeLabel);
+
+  [{
+    svg: `<svg width="26" height="10" xmlns="http://www.w3.org/2000/svg"><line x1="0" y1="5" x2="26" y2="5" stroke="#888" stroke-width="2.5" stroke-dasharray="5,3"/><text x="26" y="9" font-size="7" fill="#aaa" text-anchor="end">▶</text></svg>`,
+    label: 'CSI → CMA'
+  },{
+    svg: `<svg width="26" height="10" xmlns="http://www.w3.org/2000/svg"><line x1="0" y1="5" x2="26" y2="5" stroke="#888" stroke-width="3"/><text x="26" y="9" font-size="7" fill="#aaa" text-anchor="end">▶</text></svg>`,
+    label: 'CMA → HD/HR'
+  }].forEach(({svg,label})=>{
+    const r=document.createElement('div');
+    r.className='legend-row';
+    r.style.gap='8px';
+    r.innerHTML=svg+'<span>'+label+'</span>';
+    refBk.appendChild(r);
+  });
   el.appendChild(refBk);
 
   // ── Settlements ──

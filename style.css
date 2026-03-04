@@ -131,6 +131,9 @@ body {
 .legend-line {
   width:18px; height:3px; border-radius:2px; flex-shrink:0;
 }
+.legend-line-time {
+  display:inline-block; width:26px; height:4px; border-radius:2px; flex-shrink:0;
+}
 .legend-fill {
   width:16px; height:10px; border-radius:2px; opacity:.7; flex-shrink:0;
 }
