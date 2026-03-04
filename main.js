@@ -479,57 +479,29 @@ map.on('load', async () => {
       paint:{'line-color':'#e94560','line-width':3,'line-dasharray':[3,2]}});
 
     const aireName = feat.properties.admin_name || feat.properties.Name || '';
-    const geom     = feat.geometry; // polygon/multipolygon
 
-    // 2. Aires layers — show only the selected aire
-    const aireFilter = ['==', ['get','admin_name'], aireName];
-    ['aires-fill','aires-outline','aires-label'].forEach(id=>{
-      if (map.getLayer(id)) map.setFilter(id, aireFilter);
-    });
+    // 2. Zoom to the selected aire (all other layers stay fully visible)
+    const coords = feat.geometry.type === 'MultiPolygon'
+      ? feat.geometry.coordinates.flat(2)
+      : feat.geometry.coordinates.flat(1);
+    const lngs = coords.map(c => c[0]);
+    const lats = coords.map(c => c[1]);
+    map.fitBounds(
+      [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
+      { padding: 60, duration: 800 }
+    );
 
-    // 3. Facilities — filter by Aire property (direct match)
-    const facFilter = ['==', ['get','Aire'], aireName];
-    ['facilities-circle','facilities-label'].forEach(id=>{
-      if (map.getLayer(id)) map.setFilter(id, facFilter);
-    });
-
-    // 4. Settlements & referral routes — spatial filter (within polygon)
-    const withinFilter = ['within', geom];
-    ['sett-point','sett-label',
-     'ref-csi-cma-line','ref-csi-cma-arrow',
-     'ref-cma-hd-line','ref-cma-hd-arrow'].forEach(id=>{
-      if (map.getLayer(id)) map.setFilter(id, withinFilter);
-    });
-
-    // 5. Coverage zones — within polygon
-    ['coverage-fill','coverage-outline'].forEach(id=>{
-      if (map.getLayer(id)) map.setFilter(id, withinFilter);
-    });
-
-    // 6. Show badge
+    // 3. Show badge
     if (filterBadge && filterLabel) {
       filterLabel.textContent = aireName;
       filterBadge.style.display = 'flex';
     }
   }
 
-  /** Restore all layers to no filter and remove highlight */
+  /** Remove highlight outline and hide badge */
   function removeHighlight() {
     if (map.getLayer('hl'))  map.removeLayer('hl');
     if (map.getSource('hl')) map.removeSource('hl');
-
-    const layersToReset = [
-      'aires-fill','aires-outline','aires-label',
-      'facilities-circle','facilities-label',
-      'sett-point','sett-label',
-      'ref-csi-cma-line','ref-csi-cma-arrow',
-      'ref-cma-hd-line','ref-cma-hd-arrow',
-      'coverage-fill','coverage-outline',
-    ];
-    layersToReset.forEach(id=>{
-      if (map.getLayer(id)) map.setFilter(id, null);
-    });
-
     if (filterBadge) filterBadge.style.display = 'none';
   }
 
