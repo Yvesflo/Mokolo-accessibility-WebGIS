@@ -3,6 +3,7 @@
 // Stack: MapLibre GL JS 5 · PMTiles · georaster · proj4 · jsPDF · Vite
 // ═══════════════════════════════════════════════════════════════════════
 import maplibregl     from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
 import { Protocol }  from 'pmtiles';
 import parseGeoraster from 'georaster';
 import proj4          from 'proj4';
@@ -17,21 +18,60 @@ proj4.defs('EPSG:32632','+proj=utm +zone=32 +datum=WGS84 +units=m +no_defs');
 proj4.defs('EPSG:32633','+proj=utm +zone=33 +datum=WGS84 +units=m +no_defs');
 proj4.defs('EPSG:32634','+proj=utm +zone=34 +datum=WGS84 +units=m +no_defs');
 
+// ── Map error display helper ──────────────────────────────────────────
+function showMapError(msg) {
+  const el = document.getElementById('map');
+  el.style.cssText = 'display:flex;align-items:center;justify-content:center;background:#1a1a2e;';
+  el.innerHTML =
+    '<div style="max-width:480px;padding:32px;background:#16213e;border:1px solid #e94560;' +
+    'border-radius:8px;color:#c8d6e5;font-family:Segoe UI,sans-serif;text-align:center;">' +
+    '<div style="font-size:36px;margin-bottom:12px;">⚠️</div>' +
+    '<h2 style="color:#e94560;margin:0 0 12px;font-size:16px;">Carte indisponible</h2>' +
+    '<p style="font-size:13px;line-height:1.6;margin:0 0 16px;">' + msg + '</p>' +
+    '<p style="font-size:11px;color:#6e7681;margin:0;">Si le problème persiste, relancez ' +
+    'le navigateur avec&nbsp;: <code style="background:#0f3460;padding:2px 6px;border-radius:3px;">' +
+    'msedge.exe --use-gl=swiftshader</code></p></div>';
+}
+
 // ── Map ───────────────────────────────────────────────────────────────
-const map = new maplibregl.Map({
-  container : 'map',
-  style     : 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
-  center    : [13.81, 10.74],
-  zoom      : 9,
-  minZoom   : 6,
-  maxZoom   : 19,
-  preserveDrawingBuffer: true,               // needed for canvas.toDataURL()
-  customAttribution: '© MINSANTE/DOST : Yves Wasnyo 2026 | Hydrosheds, Copernicus, OSM, Sentinel 2, GHSL, WOF',
-  attributionControl: { compact: true },
-});
+let map;
+try {
+  map = new maplibregl.Map({
+    container : 'map',
+    style     : 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
+    center    : [13.81, 10.74],
+    zoom      : 9,
+    minZoom   : 6,
+    maxZoom   : 19,
+    customAttribution: '© MINSANTE/DOST : Yves Wasnyo 2026 | Hydrosheds, Copernicus, OSM, Sentinel 2, GHSL, WOF',
+    attributionControl: { compact: true },
+    // MapLibre GL JS v5: WebGL context options must go in canvasContextAttributes.
+    // powerPreference:'default' avoids the high-performance discrete-GPU path that
+    // fails on some setups (Edge GPU sandbox, driver switching, RDP, etc.).
+    // preserveDrawingBuffer:true is required for PNG/PDF export via canvas.toDataURL().
+    canvasContextAttributes: {
+      powerPreference      : 'default',
+      preserveDrawingBuffer: true,
+      antialias            : false,
+      failIfMajorPerformanceCaveat: false,
+    },
+  });
+} catch (err) {
+  showMapError(
+    'Échec de l\'initialisation de la carte WebGL.<br>' +
+    '<em style="font-size:11px;color:#8b949e;">' + err.message + '</em>'
+  );
+  throw err;
+}
 map.addControl(new maplibregl.NavigationControl(), 'top-left');
 map.addControl(new maplibregl.FullscreenControl(), 'top-left');
 map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
+
+// ── HTML-escape helper (prevents XSS from GeoJSON property values) ────
+function sanitize(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
 
 // ── Health-facility categories ────────────────────────────────────────
 const CATS = {
@@ -518,13 +558,13 @@ map.on('load', async () => {
     const p=e.features[0].properties;
     const cat=CATS[p.cat_name]||{};
     showInfo(
-      '<strong>'+(p.Aire||p.cat_name)+'</strong>'+
-      row('Catégorie',p.cat_name||'—')+
+      '<strong>'+sanitize(p.Aire||p.cat_name)+'</strong>'+
+      row('Catégorie',sanitize(p.cat_name||'—'))+
       (cat.beds?row('Capacité',cat.beds+' lits'):'')+
-      row('Statut',p.statut||'—')+
-      row('District',p.District||'—')+
+      row('Statut',sanitize(p.statut||'—'))+
+      row('District',sanitize(p.District||'—'))+
       '<div style="margin-top:5px;font-size:10px;color:#6e7681">'+
-        'Lat '+parseFloat(p.Latitude).toFixed(5)+'  Lon '+parseFloat(p.Longitude).toFixed(5)+'</div>'
+        'Lat '+sanitize(parseFloat(p.Latitude).toFixed(5))+'  Lon '+sanitize(parseFloat(p.Longitude).toFixed(5))+'</div>'
     );
   });
 
@@ -533,44 +573,44 @@ map.on('load', async () => {
     const p=e.features[0].properties;
     const beds={'HR/HRA':1000,'HD':300,'CMA':100,'CSI':50}[p.cat_name]||'—';
     showInfo('<strong>Zone de couverture</strong>'+
-      row('Catégorie',p.cat_name||'—')+
+      row('Catégorie',sanitize(p.cat_name||'—'))+
       row('Capacité',beds+(beds!=='—'?' lits':''))+
-      row('ID FS',p.ID||'—'));
+      row('ID FS',sanitize(p.ID||'—')));
   });
 
   // Referral CSI→CMA
   map.on('click','ref-csi-cma-line',e=>{
     const p=e.features[0].properties;
-    const fromName=catCodeName(p.from__cat);
-    const toName  =catCodeName(p.to__cat);
+    const fromName=sanitize(catCodeName(p.from__cat));
+    const toName  =sanitize(catCodeName(p.to__cat));
     showInfo(
       '<strong>Référence : '+fromName+' → '+toName+'</strong>'+
       row('De (cat)',fromName+' (code '+Math.min(+p.from__cat,5)+')')+
       row('Vers (cat)',toName+' (code '+Math.min(+p.to__cat,5)+')')+
-      row('Distance',p.km+' km')+
-      row('Temps de trajet',p.m+' min'));
+      row('Distance',sanitize(p.km)+' km')+
+      row('Temps de trajet',sanitize(p.m)+' min'));
   });
 
   // Referral CMA→HD/HR
   map.on('click','ref-cma-hd-line',e=>{
     const p=e.features[0].properties;
-    const fromName=catCodeName(p.from__cat);
-    const toName  =catCodeName(p.to__cat);
+    const fromName=sanitize(catCodeName(p.from__cat));
+    const toName  =sanitize(catCodeName(p.to__cat));
     showInfo(
       '<strong>Référence : '+fromName+' → '+toName+'</strong>'+
       row('De (cat)',fromName+' (code '+Math.min(+p.from__cat,5)+')')+
       row('Vers (cat)',toName+' (code '+Math.min(+p.to__cat,5)+')')+
-      row('Distance',p.km+' km')+
-      row('Temps de trajet',p.m+' min'));
+      row('Distance',sanitize(p.km)+' km')+
+      row('Temps de trajet',sanitize(p.m)+' min'));
   });
 
   // Aires de sante
   map.on('click','aires-fill',e=>{
     const p=e.features[0].properties;
     showInfo('<strong>Aire de Santé</strong>'+
-      row('Nom',p.admin_name||'—')+
-      row('Code',p.Code_AS||'—')+
-      row('District',p.District_S||'—'));
+      row('Nom',sanitize(p.admin_name||'—'))+
+      row('Code',sanitize(p.Code_AS||'—'))+
+      row('District',sanitize(p.District_S||'—')));
   });
 
   // Pointer cursors
@@ -1279,3 +1319,16 @@ async function downloadPDF() {
 // ── Wire download buttons ────────────────────────────────────────────
 document.getElementById('btn-png').addEventListener('click',downloadPNG);
 document.getElementById('btn-pdf').addEventListener('click',downloadPDF);
+
+// ── Mobile panel toggle drawer ───────────────────────────────────────
+const panelToggleBtn = document.getElementById('panel-toggle');
+const panelEl        = document.getElementById('panel');
+if (panelToggleBtn && panelEl) {
+  panelToggleBtn.addEventListener('click', () => {
+    const isOpen = panelEl.classList.toggle('panel-open');
+    panelToggleBtn.textContent = isOpen ? '✕' : '☰';
+    panelToggleBtn.setAttribute('aria-expanded', String(isOpen));
+    // Let MapLibre recalculate canvas size after panel slides in/out
+    map.resize();
+  });
+}
