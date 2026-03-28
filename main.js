@@ -306,13 +306,38 @@ map.on('load', async () => {
     return polys.some(poly=>_pip(pt,poly[0])&&!poly.slice(1).some(h=>_pip(pt,h)));
   }
 
-  // 1. PIP each facility → assign aire_admin from the matching aire polygon
+  // Pre-compute aire centroids for fallback nearest-aire lookup
+  const _aireCentroids = aires.features.map(af => {
+    const rings = af.geometry.type==='Polygon'
+      ? af.geometry.coordinates[0]
+      : af.geometry.coordinates[0][0];
+    const n = rings.length;
+    return {
+      name : af.properties.admin_name,
+      lon  : rings.reduce((s,c)=>s+c[0],0)/n,
+      lat  : rings.reduce((s,c)=>s+c[1],0)/n,
+    };
+  });
+
+  // PIP first; if the point falls exactly on a boundary (or GPS drift puts
+  // it just outside), fall back to the nearest centroid so every feature
+  // always gets an aire_admin value.
+  function _assignAire(lon, lat) {
+    const pipMatch = aires.features.find(af => _pipFeat([lon,lat], af));
+    if (pipMatch) return pipMatch.properties.admin_name;
+    let best = null, bestD = Infinity;
+    _aireCentroids.forEach(c => {
+      const d = (lon-c.lon)**2 + (lat-c.lat)**2;
+      if (d < bestD) { bestD=d; best=c.name; }
+    });
+    return best;
+  }
+
+  // 1. Tag each facility with its aire
   facilities.features.forEach(ff => {
     const lon=+ff.properties.Longitude, lat=+ff.properties.Latitude;
-    if (!isNaN(lon) && !isNaN(lat)) {
-      const match=aires.features.find(af=>_pipFeat([lon,lat],af));
-      if (match) ff.properties.aire_admin=match.properties.admin_name;
-    }
+    if (!isNaN(lon) && !isNaN(lat))
+      ff.properties.aire_admin = _assignAire(lon, lat);
   });
 
   // 2. Build facility ID → aire_admin lookup
@@ -328,12 +353,11 @@ map.on('load', async () => {
     if (a) f.properties.aire_admin = a;
   });
 
-  // 4. Tag settlements via PIP → aire_admin
+  // 4. Tag settlements via PIP + centroid fallback
   if (settlements) {
     settlements.features.forEach(sf => {
-      const c=sf.geometry.coordinates;
-      const match=aires.features.find(af=>_pipFeat(c,af));
-      if (match) sf.properties.aire_admin=match.properties.admin_name;
+      const [lon,lat] = sf.geometry.coordinates;
+      sf.properties.aire_admin = _assignAire(lon, lat);
     });
   }
 
@@ -351,7 +375,7 @@ map.on('load', async () => {
         const d=(start[0]-+ff.properties.Longitude)**2+(start[1]-+ff.properties.Latitude)**2;
         if (d<bestD) { bestD=d; best=ff; }
       });
-      if (best) rf.properties.aire_admin=best.properties.aire_admin||null;
+      if (best) rf.properties.aire_admin = best.properties.aire_admin || null;
     });
   }
   _tagRoutes(refCsiCma);
@@ -505,6 +529,8 @@ map.on('load', async () => {
     cb.addEventListener('change',()=>{
       const vis=cb.checked?'visible':'none';
       layerIds.forEach(id=>{ if(map.getLayer(id)) map.setLayoutProperty(id,'visibility',vis); });
+      // Re-apply aire filter so it is never lost when a layer becomes visible
+      if (cbId==='toggle-facilities')  applyFacFilter();
       updateLegendVisibility();
     });
   }
@@ -531,6 +557,11 @@ map.on('load', async () => {
     (ANALYSIS_LAYERS[key]||[]).forEach(id=>{
       if(map.getLayer(id)) map.setLayoutProperty(id,'visibility',vis);
     });
+    // Re-apply spatial + category filters so the aire filter is never lost
+    if (active) {
+      if (key==='coverage') applyCovFilter();
+      if (key==='referral') applyRefTimeFilter();
+    }
     updateLegendVisibility();
   }
   ['access','coverage','referral'].forEach(key=>{
