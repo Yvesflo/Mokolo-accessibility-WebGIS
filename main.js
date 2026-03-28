@@ -286,18 +286,12 @@ map.on('load', async () => {
   try { settlements=await fetchJSON('./data/Settlements_Mokolo.geojson'); }
   catch { console.info('[settlements] File not found — layer skipped.'); }
 
-  // ── A2. Enrich GeoJSON with aire-level properties (before addSource) ─
-  // 1. Facility ID → Aire name lookup
-  const _facAireById = {};
-  facilities.features.forEach(f => {
-    if (f.properties.ID != null) _facAireById[f.properties.ID] = f.properties.Aire || null;
-  });
-  // 2. Tag each coverage zone with its facility's Aire name
-  coverage.features.forEach(f => {
-    const a = _facAireById[f.properties.ID];
-    if (a) f.properties.Aire = a;
-  });
-  // 3. Point-in-polygon (ray-casting)
+  // ── A2. Enrich GeoJSON with `aire_admin` — a common spatial key used
+  //        to filter every layer when an aire is selected in the search.
+  //        `aire_admin` == the aire's `admin_name` found by PIP (or nearest
+  //        facility for route data that has no geometry overlap).
+
+  // Utility: point-in-polygon (ray-casting)
   function _pip(pt, ring) {
     let inside = false;
     for (let i=0, j=ring.length-1; i<ring.length; j=i++) {
@@ -311,15 +305,39 @@ map.on('load', async () => {
     const polys=type==='Polygon'?[coordinates]:coordinates;
     return polys.some(poly=>_pip(pt,poly[0])&&!poly.slice(1).some(h=>_pip(pt,h)));
   }
-  // 4. Tag settlements with the admin_name of the aire they fall in
+
+  // 1. PIP each facility → assign aire_admin from the matching aire polygon
+  facilities.features.forEach(ff => {
+    const lon=+ff.properties.Longitude, lat=+ff.properties.Latitude;
+    if (!isNaN(lon) && !isNaN(lat)) {
+      const match=aires.features.find(af=>_pipFeat([lon,lat],af));
+      if (match) ff.properties.aire_admin=match.properties.admin_name;
+    }
+  });
+
+  // 2. Build facility ID → aire_admin lookup
+  const _facAireAdminById = {};
+  facilities.features.forEach(f => {
+    if (f.properties.ID != null && f.properties.aire_admin)
+      _facAireAdminById[f.properties.ID] = f.properties.aire_admin;
+  });
+
+  // 3. Tag coverage zones via facility ID → aire_admin
+  coverage.features.forEach(f => {
+    const a = _facAireAdminById[f.properties.ID];
+    if (a) f.properties.aire_admin = a;
+  });
+
+  // 4. Tag settlements via PIP → aire_admin
   if (settlements) {
     settlements.features.forEach(sf => {
       const c=sf.geometry.coordinates;
       const match=aires.features.find(af=>_pipFeat(c,af));
-      if (match) sf.properties.admin_name=match.properties.admin_name;
+      if (match) sf.properties.aire_admin=match.properties.admin_name;
     });
   }
-  // 5. Tag referral routes with from_aire (nearest facility to route start)
+
+  // 5. Tag referral routes via nearest facility → aire_admin
   function _routeStart(feat) {
     const c=feat.geometry.coordinates;
     return feat.geometry.type==='MultiLineString'?c[0][0]:c[0];
@@ -333,7 +351,7 @@ map.on('load', async () => {
         const d=(start[0]-+ff.properties.Longitude)**2+(start[1]-+ff.properties.Latitude)**2;
         if (d<bestD) { bestD=d; best=ff; }
       });
-      if (best) rf.properties.from_aire=best.properties.Aire;
+      if (best) rf.properties.aire_admin=best.properties.aire_admin||null;
     });
   }
   _tagRoutes(refCsiCma);
@@ -487,6 +505,7 @@ map.on('load', async () => {
     cb.addEventListener('change',()=>{
       const vis=cb.checked?'visible':'none';
       layerIds.forEach(id=>{ if(map.getLayer(id)) map.setLayoutProperty(id,'visibility',vis); });
+      updateLegendVisibility();
     });
   }
 
@@ -512,8 +531,7 @@ map.on('load', async () => {
     (ANALYSIS_LAYERS[key]||[]).forEach(id=>{
       if(map.getLayer(id)) map.setLayoutProperty(id,'visibility',vis);
     });
-    const lb=document.getElementById('legend-block-'+key);
-    if (lb) lb.style.display=active?'':'none';
+    updateLegendVisibility();
   }
   ['access','coverage','referral'].forEach(key=>{
     const btn=document.getElementById('btn-analysis-'+key);
@@ -623,7 +641,7 @@ map.on('load', async () => {
       if (map.getLayer(id)) map.setFilter(id,['==',['get','admin_name'],aireName]);
     });
     ['sett-point','sett-label'].forEach(id=>{
-      if (map.getLayer(id)) map.setFilter(id,['==',['get','admin_name'],aireName]);
+      if (map.getLayer(id)) map.setFilter(id,['==',['get','aire_admin'],aireName]);
     });
     applyFacFilter();
     applyCovFilter();
@@ -643,7 +661,10 @@ map.on('load', async () => {
     if (filterBadge) filterBadge.style.display = 'none';
     if (!selectedAireName) return;
     selectedAireName = null;
-    ['aires-fill','aires-outline','aires-label','sett-point','sett-label'].forEach(id=>{
+    ['aires-fill','aires-outline','aires-label'].forEach(id=>{
+      if (map.getLayer(id)) map.setFilter(id, null);
+    });
+    ['sett-point','sett-label'].forEach(id=>{
       if (map.getLayer(id)) map.setFilter(id, null);
     });
     applyFacFilter();
@@ -728,6 +749,7 @@ map.on('load', async () => {
 
   // ── I. Build legend & start raster loading ──────────────────────────
   buildLegends();
+  updateLegendVisibility();
   loadRasters();
 
 }); // end map.on('load')
@@ -873,7 +895,7 @@ function applyFacFilter() {
     if (hasOther)     conditions.push(['!',['in',['get','cat_name'],['literal',Object.keys(CATS)]]]);
     base=conditions.length===1?conditions[0]:['any',...conditions];
   }
-  const filt=withAireFilt(base,'Aire');
+  const filt=withAireFilt(base,'aire_admin');
   ['facilities-circle','facilities-label'].forEach(id=>{
     if (!map.getLayer(id)) return;
     if (filt) map.setFilter(id,filt); else map.setFilter(id,null);
@@ -886,7 +908,7 @@ function applyCovFilter() {
   if (cats.length===0) base=['==',1,0];
   else if (cats.length<Object.keys(CATS).length)
     base=['in',['get','cat_name'],['literal',cats]];
-  const filt=withAireFilt(base,'Aire');
+  const filt=withAireFilt(base,'aire_admin');
   ['coverage-fill','coverage-outline'].forEach(id=>{
     if (!map.getLayer(id)) return;
     if (filt) map.setFilter(id,filt); else map.setFilter(id,null);
@@ -907,10 +929,30 @@ function applyRefTimeFilter() {
     if (activeRefTime.has('tInf')) conditions.push(['>',['get','m'],120]);
     timeFilt=conditions.length===1?conditions[0]:['any',...conditions];
   }
-  const filt=withAireFilt(timeFilt,'from_aire');
+  const filt=withAireFilt(timeFilt,'aire_admin');
   ['ref-csi-cma-line','ref-csi-cma-arrow','ref-cma-hd-line','ref-cma-hd-arrow'].forEach(id=>{
     if (map.getLayer(id)) map.setFilter(id,filt);
   });
+}
+
+// ── Legend visibility: show only blocks for currently active layers ──────
+function updateLegendVisibility() {
+  const show = (id, visible) => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = visible ? '' : 'none';
+  };
+  const cbOn = id => { const cb = document.getElementById(id); return !!(cb && cb.checked); };
+  show('legend-block-access',   analysisActive.access);
+  show('legend-block-pop',      cbOn('toggle-population'));
+  show('legend-block-fac',      cbOn('toggle-facilities'));
+  show('legend-block-coverage', analysisActive.coverage);
+  show('legend-block-referral', analysisActive.referral);
+  show('legend-block-sett',     cbOn('toggle-settlements'));
+  // empty-state message
+  const anyVisible = analysisActive.access || analysisActive.coverage || analysisActive.referral ||
+    cbOn('toggle-population') || cbOn('toggle-facilities') || cbOn('toggle-settlements');
+  const msg = document.getElementById('legend-empty-msg');
+  if (msg) msg.style.display = anyVisible ? 'none' : '';
 }
 
 // ── buildColorRamp (for panel legend) ─────────────────────────────────
@@ -960,6 +1002,8 @@ function buildLegends() {
   el.appendChild(accessLegendBlock);
 
   const popBk=section('Densité de population (hab/km²)');
+  popBk.id='legend-block-pop';
+  popBk.style.display='none';
   popBk.appendChild(buildColorRamp(STOPS_POP));
   const popLbls=document.createElement('div');
   popLbls.className='legend-ramp-labels';popLbls.id='lbl-population';
@@ -969,6 +1013,8 @@ function buildLegends() {
 
   // ── Facilities — clickable by category ──
   const facBk=section('Établissements de santé');
+  facBk.id='legend-block-fac';
+  facBk.style.display='none';
   const allFacEntries=[...Object.entries(CATS),['Autre',{color:CAT_OTHER,beds:'—',fr:'Autre établissement'}]];
   allFacEntries.forEach(([k,v])=>{
     const row=document.createElement('div');
@@ -1078,11 +1124,20 @@ function buildLegends() {
 
   // ── Settlements ──
   const settBk=section('Localités');
+  settBk.id='legend-block-sett';
+  settBk.style.display='none';
   const srRow=document.createElement('div');
   srRow.className='legend-row';
   srRow.innerHTML='<span class="legend-dot-sm" style="background:#8e44ad"></span><span>Localité (zoom ≥ 9)</span>';
   settBk.appendChild(srRow);
   el.appendChild(settBk);
+
+  // ── Empty-state message ──
+  const emptyMsg=document.createElement('div');
+  emptyMsg.id='legend-empty-msg';
+  emptyMsg.style.cssText='font-size:11px;color:#484f58;font-style:italic;padding:4px 2px;';
+  emptyMsg.textContent='Activez une couche ou une analyse pour voir la légende.';
+  el.appendChild(emptyMsg);
 }
 
 function updateRasterLegend() {
