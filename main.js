@@ -152,6 +152,161 @@ const analysisActive = { access: false, coverage: false, referral: false };
 // ── Currently selected aire de santé name (null = no spatial filter) ─
 let selectedAireName = null;
 
+// ═══════════════════════════════════════════════════════════════════════
+// I18N
+// ═══════════════════════════════════════════════════════════════════════
+let currentLang = 'fr';
+
+const I18N = {
+  fr: {
+    'page-title':        'District de Santé de Mokolo — Accessibilité & Couverture',
+    'header-title':      'District de Santé de Mokolo',
+    'header-sub':        'Accessibilité & Couverture — Établissements Publics',
+    'sec-layers':        'Couches',
+    'lbl-pop':           'Densité de population (hab/km²)',
+    'lbl-opacity':       'Opacité',
+    'lbl-min':           'Min (hab)',
+    'lbl-max':           'Max (hab)',
+    'lbl-min-min':       'Min (min)',
+    'lbl-max-min':       'Max (min)',
+    'lbl-min-hab':       'Min (hab)',
+    'lbl-max-hab':       'Max (hab)',
+    'lbl-opacity-resid': 'Opacité (résid.)',
+    'lbl-fac':           'Établissements de santé',
+    'lbl-sett':          'Localités / Agglomérations',
+    'lbl-aires':         'Aires de santé',
+    'lbl-district':      'Limite du district',
+    'sec-analyses':      'Analyses',
+    'raster-loading':    '⏳ Chargement rasters…',
+    'ana-access-title':  'Accessibilité',
+    'ana-access-sub':    'Temps de trajet aux soins',
+    'ana-cov-title':     'Couverture',
+    'ana-cov-sub':       'Zones hospitalières · Pop. résiduelle',
+    'ana-ref-title':     'Routes de référence',
+    'sec-search':        'Recherche — Aire de santé',
+    'search-placeholder':'Nom de l\'aire de santé…',
+    'search-clear-title':'Effacer la sélection',
+    'filter-reset':      '✕ Réinitialiser',
+    'sec-legend':        'Légende',
+    'sec-info':          'Information',
+    'sec-export':        'Exporter la carte',
+    'btn-png':           '⬇ PNG',
+    'btn-pdf':           '⬇ PDF',
+    'about-btn':         'À propos',
+    'about-title':       'À propos',
+    'about-h-access':    'Accessibilité géographique',
+    'about-p-access':    `Carte isochrone de l'accessibilité géographique (en minutes de trajet) aux établissements de santé publics depuis n'importe quel point du District de Santé de Mokolo. L'analyse utilise l'algorithme du chemin de moindre coût intégrant l'occupation du sol, le MNT, la densité de population, le réseau routier, ainsi que les barrières naturelles (cours d'eau, zones humides). Un scénario de déplacement multimodal (vitesses variables selon le type de route) a été appliqué.`,
+    'about-h-cover':     'Couverture hospitalière',
+    'about-p-cover':     `Zones de couverture maximales calculées en fonction de la capacité d'accueil (nombre de lits) de chaque catégorie d'établissement (HR/HRA, HD, CMA, CSI). La carte présente également la population résiduelle non couverte au-delà de ces capacités.`,
+    'about-h-ref':       'Routes de référence',
+    'about-p-ref':       `Modélisation des itinéraires de référence optimaux : CSI et catégories inférieures vers CMA, et CMA vers les hôpitaux de niveau supérieur (HD / HR), selon le principe du plus proche établissement compétent.`,
+    'about-h-loc':       'Localités',
+    'about-p-loc':       'Points de localités sélectionnés pour faciliter la localisation au sein du district.',
+    'about-sources-label':'Sources :',
+  },
+  en: {
+    'page-title':        'Mokolo Health District — Accessibility & Coverage',
+    'header-title':      'Mokolo Health District',
+    'header-sub':        'Accessibility & Coverage — Public Facilities',
+    'sec-layers':        'Layers',
+    'lbl-pop':           'Population density (inh/km²)',
+    'lbl-opacity':       'Opacity',
+    'lbl-min':           'Min (inh)',
+    'lbl-max':           'Max (inh)',
+    'lbl-min-min':       'Min (min)',
+    'lbl-max-min':       'Max (min)',
+    'lbl-min-hab':       'Min (inh)',
+    'lbl-max-hab':       'Max (inh)',
+    'lbl-opacity-resid': 'Opacity (resid.)',
+    'lbl-fac':           'Health facilities',
+    'lbl-sett':          'Localities / Settlements',
+    'lbl-aires':         'Health areas',
+    'lbl-district':      'District boundary',
+    'sec-analyses':      'Analyses',
+    'raster-loading':    '⏳ Loading rasters…',
+    'ana-access-title':  'Accessibility',
+    'ana-access-sub':    'Travel time to healthcare',
+    'ana-cov-title':     'Coverage',
+    'ana-cov-sub':       'Hospital zones · Residual pop.',
+    'ana-ref-title':     'Referral routes',
+    'sec-search':        'Search — Health area',
+    'search-placeholder':'Health area name…',
+    'search-clear-title':'Clear selection',
+    'filter-reset':      '✕ Reset',
+    'sec-legend':        'Legend',
+    'sec-info':          'Information',
+    'sec-export':        'Export map',
+    'btn-png':           '⬇ PNG',
+    'btn-pdf':           '⬇ PDF',
+    'about-btn':         'About',
+    'about-title':       'About',
+    'about-h-access':    'Geographical accessibility',
+    'about-p-access':    `Isochrone map analysing geographical accessibility (travel time in minutes) to public health facilities from any location in the Mokolo Health District. The analysis uses a least-cost path algorithm incorporating land cover, DEM, population density, road network, and natural barriers (rivers, wetlands). A multi-modal travel scenario with variable speeds by route type was applied.`,
+    'about-h-cover':     'Hospital coverage',
+    'about-p-cover':     `Maximum coverage zones calculated from the bed capacity of each facility category (HR/HRA, HD, CMA, CSI). The map also shows the residual population not covered within those capacities.`,
+    'about-h-ref':       'Referral routes',
+    'about-p-ref':       `Modelled optimal referral routes: CSI and lower categories to the nearest CMA, and CMA to the nearest higher-level hospital (HD/HR).`,
+    'about-h-loc':       'Localities',
+    'about-p-loc':       'Selected settlement points to help situate within the district.',
+    'about-sources-label':'Sources:',
+  },
+};
+
+function applyLang(lang) {
+  currentLang = lang;
+  const t = I18N[lang];
+  // data-i18n text content
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (t[key] != null) el.textContent = t[key];
+  });
+  // data-i18n-placeholder
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const key = el.getAttribute('data-i18n-placeholder');
+    if (t[key] != null) el.placeholder = t[key];
+  });
+  // data-i18n-title
+  document.querySelectorAll('[data-i18n-title]').forEach(el => {
+    const key = el.getAttribute('data-i18n-title');
+    if (t[key] != null) el.title = t[key];
+  });
+  // page title
+  document.title = t['page-title'] || document.title;
+  // lang button label: show opposite lang
+  const btnLang = document.getElementById('btn-lang');
+  if (btnLang) btnLang.textContent = lang === 'fr' ? 'EN' : 'FR';
+  // html lang attr
+  document.documentElement.lang = lang;
+}
+
+// ── About modal helpers ─────────────────────────────────────────────
+function openAbout() {
+  const overlay = document.getElementById('about-overlay');
+  if (overlay) { overlay.style.display = 'flex'; overlay.focus(); }
+}
+function closeAbout() {
+  const overlay = document.getElementById('about-overlay');
+  if (overlay) overlay.style.display = 'none';
+}
+
+// Wire up About + lang buttons (DOM is ready at this point because
+// this module runs after DOMContentLoaded via type="module")
+(function wireHeaderButtons() {
+  document.getElementById('btn-about')?.addEventListener('click', openAbout);
+  document.getElementById('about-close')?.addEventListener('click', closeAbout);
+  document.getElementById('about-overlay')?.addEventListener('click', e => {
+    if (e.target === document.getElementById('about-overlay')) closeAbout();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeAbout();
+  });
+  document.getElementById('btn-lang')?.addEventListener('click', () => {
+    applyLang(currentLang === 'fr' ? 'en' : 'fr');
+  });
+  // Apply default language on load
+  applyLang('fr');
+})();
+
 // ── Color interpolation + filter ──────────────────────────────────────
 function interpStops(v, stops) {
   if (v == null || isNaN(v))                return [0,0,0,0];

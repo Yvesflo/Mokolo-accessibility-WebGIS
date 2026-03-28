@@ -3,50 +3,107 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>District de Santé de Mokolo — Accessibilité &amp; Couverture</title>
+  <title data-i18n="page-title">District de Santé de Mokolo — Accessibilité &amp; Couverture</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+
+  <!-- ── About modal ──────────────────────────────────────── -->
+  <div id="about-overlay" role="dialog" aria-modal="true" aria-labelledby="about-title" style="display:none;">
+    <div id="about-modal">
+      <div id="about-header">
+        <h2 id="about-title" data-i18n="about-title">À propos</h2>
+        <button id="about-close" aria-label="Fermer">✕</button>
+      </div>
+      <div id="about-body">
+
+        <h3 data-i18n="about-h-access">Accessibilité géographique</h3>
+        <p data-i18n="about-p-access">
+          Carte isochrone de l'accessibilité géographique (en minutes de trajet) aux établissements de
+          santé publics depuis n'importe quel point du District de Santé de Mokolo. L'analyse utilise
+          l'algorithme du chemin de moindre coût intégrant l'occupation du sol, le MNT, la densité de
+          population, le réseau routier, ainsi que les barrières naturelles (cours d'eau, zones humides).
+          Un scénario de déplacement multimodal (vitesses variables selon le type de route) a été
+          appliqué.
+        </p>
+
+        <h3 data-i18n="about-h-cover">Couverture hospitalière</h3>
+        <p data-i18n="about-p-cover">
+          Zones de couverture maximales calculées en fonction de la capacité d'accueil (nombre de lits)
+          de chaque catégorie d'établissement (HR/HRA, HD, CMA, CSI). La carte présente également la
+          population résiduelle non couverte au-delà de ces capacités.
+        </p>
+
+        <h3 data-i18n="about-h-ref">Routes de référence</h3>
+        <p data-i18n="about-p-ref">
+          Modélisation des itinéraires de référence optimaux : CSI et catégories inférieures vers CMA,
+          et CMA vers les hôpitaux de niveau supérieur (HD / HR), selon le principe du plus proche
+          établissement compétent.
+        </p>
+
+        <h3 data-i18n="about-h-loc">Localités</h3>
+        <p data-i18n="about-p-loc">
+          Points de localités sélectionnés pour faciliter la localisation au sein du district.
+        </p>
+
+        <div id="about-sources">
+          <span data-i18n="about-sources-label">Sources :</span>
+          Hydrosheds · Copernicus · OSM · Sentinel‑2 · GHSL · WOF
+        </div>
+
+        <div id="about-author">
+          © MINSANTE/DOST — <strong>Yves Wasnyo</strong> · 2026
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Mobile panel toggle button (hidden on desktop) -->
   <button id="panel-toggle" aria-label="Ouvrir/fermer le panneau" aria-expanded="false">☰</button>
 
   <!-- Map container -->
   <div id="map">
-    <!-- Credentials overlay on the live map -->
     <div id="map-credits">© MINSANTE/DOST : Yves Wasnyo 2026 &nbsp;|&nbsp; Hydrosheds · Copernicus · OSM · Sentinel 2 · GHSL · WOF</div>
   </div>
 
   <!-- Side panel -->
   <div id="panel">
     <div id="panel-header">
-      <h1>District de Santé de Mokolo</h1>
-      <p>Accessibilité &amp; Couverture — Établissements Publics</p>
+      <div id="panel-header-top">
+        <div id="panel-header-text">
+          <h1 data-i18n="header-title">District de Santé de Mokolo</h1>
+          <p data-i18n="header-sub">Accessibilité &amp; Couverture — Établissements Publics</p>
+        </div>
+        <div id="panel-header-actions">
+          <button id="btn-about" class="header-icon-btn" title="À propos / About">ℹ</button>
+          <button id="btn-lang" class="header-icon-btn" title="Switch language">EN</button>
+        </div>
+      </div>
     </div>
 
     <!-- ── Layer toggles ───────────────────────────────────── -->
     <div class="panel-section">
-      <h2>Couches</h2>
+      <h2 data-i18n="sec-layers">Couches</h2>
 
       <!-- Population density raster -->
       <div class="raster-block">
         <label class="toggle-row">
           <input type="checkbox" id="toggle-population" />
-          <span class="toggle-label">Densité de population (hab/km²)</span>
+          <span class="toggle-label" data-i18n="lbl-pop">Densité de population (hab/km²)</span>
         </label>
         <div class="raster-controls">
           <div class="ctrl-row">
-            <span class="ctrl-label">Opacité</span>
+            <span class="ctrl-label" data-i18n="lbl-opacity">Opacité</span>
             <input type="range" id="opacity-population" min="0" max="100" value="80" class="slider" />
             <span class="ctrl-val" id="opacity-val-population">80%</span>
           </div>
           <div class="ctrl-row">
-            <span class="ctrl-label">Min (hab)</span>
+            <span class="ctrl-label" data-i18n="lbl-min">Min (hab)</span>
             <input type="range" id="filter-pop-min" min="0" max="1000" value="0" class="slider" />
             <span class="ctrl-val" id="fval-pop-min">0</span>
           </div>
           <div class="ctrl-row">
-            <span class="ctrl-label">Max (hab)</span>
+            <span class="ctrl-label" data-i18n="lbl-max">Max (hab)</span>
             <input type="range" id="filter-pop-max" min="0" max="1000" value="1000" class="slider" />
             <span class="ctrl-val" id="fval-pop-max">1000</span>
           </div>
@@ -55,49 +112,49 @@
 
       <label class="toggle-row">
         <input type="checkbox" id="toggle-facilities" />
-        <span class="toggle-label">Établissements de santé</span>
+        <span class="toggle-label" data-i18n="lbl-fac">Établissements de santé</span>
       </label>
       <label class="toggle-row">
         <input type="checkbox" id="toggle-settlements" />
-        <span class="toggle-label">Localités / Agglomérations</span>
+        <span class="toggle-label" data-i18n="lbl-sett">Localités / Agglomérations</span>
       </label>
       <label class="toggle-row">
         <input type="checkbox" id="toggle-aires" />
-        <span class="toggle-label">Aires de santé</span>
+        <span class="toggle-label" data-i18n="lbl-aires">Aires de santé</span>
       </label>
       <label class="toggle-row">
         <input type="checkbox" id="toggle-district" checked />
-        <span class="toggle-label">Limite du district</span>
+        <span class="toggle-label" data-i18n="lbl-district">Limite du district</span>
       </label>
     </div>
 
     <!-- ── Analyses ────────────────────────────────────────── -->
     <div class="panel-section">
-      <h2>Analyses</h2>
-      <span id="raster-loading" class="raster-loading-badge" style="display:none;">⏳ Chargement rasters…</span>
+      <h2 data-i18n="sec-analyses">Analyses</h2>
+      <span id="raster-loading" class="raster-loading-badge" style="display:none;" data-i18n="raster-loading">⏳ Chargement rasters…</span>
 
       <!-- Accessibility analysis -->
       <div class="analysis-block">
         <button class="analysis-btn" id="btn-analysis-access">
           <span class="analysis-btn-label">
-            <span class="analysis-btn-title">Accessibilité</span>
-            <span class="analysis-btn-sub">Temps de trajet aux soins</span>
+            <span class="analysis-btn-title" data-i18n="ana-access-title">Accessibilité</span>
+            <span class="analysis-btn-sub" data-i18n="ana-access-sub">Temps de trajet aux soins</span>
           </span>
           <span class="analysis-btn-chevron">▶</span>
         </button>
         <div class="analysis-controls" id="analysis-access-controls" style="display:none;">
           <div class="ctrl-row">
-            <span class="ctrl-label">Opacité</span>
+            <span class="ctrl-label" data-i18n="lbl-opacity">Opacité</span>
             <input type="range" id="opacity-accessibility" min="0" max="100" value="80" class="slider" />
             <span class="ctrl-val" id="opacity-val-accessibility">80%</span>
           </div>
           <div class="ctrl-row">
-            <span class="ctrl-label">Min (min)</span>
+            <span class="ctrl-label" data-i18n="lbl-min-min">Min (min)</span>
             <input type="range" id="filter-access-min" min="0" max="240" value="0" class="slider" />
             <span class="ctrl-val" id="fval-access-min">0</span>
           </div>
           <div class="ctrl-row">
-            <span class="ctrl-label">Max (min)</span>
+            <span class="ctrl-label" data-i18n="lbl-max-min">Max (min)</span>
             <input type="range" id="filter-access-max" min="0" max="240" value="240" class="slider" />
             <span class="ctrl-val" id="fval-access-max">240</span>
           </div>
@@ -108,24 +165,24 @@
       <div class="analysis-block">
         <button class="analysis-btn" id="btn-analysis-coverage">
           <span class="analysis-btn-label">
-            <span class="analysis-btn-title">Couverture</span>
-            <span class="analysis-btn-sub">Zones hospitalières · Pop. résiduelle</span>
+            <span class="analysis-btn-title" data-i18n="ana-cov-title">Couverture</span>
+            <span class="analysis-btn-sub" data-i18n="ana-cov-sub">Zones hospitalières · Pop. résiduelle</span>
           </span>
           <span class="analysis-btn-chevron">▶</span>
         </button>
         <div class="analysis-controls" id="analysis-coverage-controls" style="display:none;">
           <div class="ctrl-row">
-            <span class="ctrl-label">Opacité (résid.)</span>
+            <span class="ctrl-label" data-i18n="lbl-opacity-resid">Opacité (résid.)</span>
             <input type="range" id="opacity-residual" min="0" max="100" value="80" class="slider" />
             <span class="ctrl-val" id="opacity-val-residual">80%</span>
           </div>
           <div class="ctrl-row">
-            <span class="ctrl-label">Min (hab)</span>
+            <span class="ctrl-label" data-i18n="lbl-min-hab">Min (hab)</span>
             <input type="range" id="filter-resid-min" min="0" max="700" value="0" class="slider" />
             <span class="ctrl-val" id="fval-resid-min">0</span>
           </div>
           <div class="ctrl-row">
-            <span class="ctrl-label">Max (hab)</span>
+            <span class="ctrl-label" data-i18n="lbl-max-hab">Max (hab)</span>
             <input type="range" id="filter-resid-max" min="0" max="700" value="700" class="slider" />
             <span class="ctrl-val" id="fval-resid-max">700</span>
           </div>
@@ -136,7 +193,7 @@
       <div class="analysis-block">
         <button class="analysis-btn" id="btn-analysis-referral">
           <span class="analysis-btn-label">
-            <span class="analysis-btn-title">Routes de référence</span>
+            <span class="analysis-btn-title" data-i18n="ana-ref-title">Routes de référence</span>
             <span class="analysis-btn-sub">CSI → CMA · CMA → HD/HR</span>
           </span>
           <span class="analysis-btn-chevron">▶</span>
@@ -146,37 +203,36 @@
 
     <!-- ── Search aire de santé ────────────────────────────── -->
     <div class="panel-section">
-      <h2>Recherche — Aire de santé</h2>
+      <h2 data-i18n="sec-search">Recherche — Aire de santé</h2>
       <div class="search-row">
-        <input type="text" id="search-aire" placeholder="Nom de l'aire de santé…" />
-        <button id="search-clear" class="icon-btn" title="Effacer la sélection">✕</button>
+        <input type="text" id="search-aire" data-i18n-placeholder="search-placeholder" placeholder="Nom de l'aire de santé…" />
+        <button id="search-clear" class="icon-btn" data-i18n-title="search-clear-title" title="Effacer la sélection">✕</button>
       </div>
       <ul id="search-results"></ul>
-      <!-- Filter active badge -->
       <div id="aire-filter-badge" style="display:none;" class="filter-badge">
         <span id="aire-filter-label">—</span>
-        <button id="aire-filter-clear" class="icon-btn" title="Réinitialiser le filtre">✕ Réinitialiser</button>
+        <button id="aire-filter-clear" class="icon-btn" data-i18n="filter-reset">✕ Réinitialiser</button>
       </div>
     </div>
 
     <!-- ── Legend ──────────────────────────────────────────── -->
     <div class="panel-section">
-      <h2>Légende</h2>
+      <h2 data-i18n="sec-legend">Légende</h2>
       <div id="legend-content"></div>
     </div>
 
     <!-- ── Info box for clicked features ─────────────────── -->
     <div class="panel-section" id="info-box" style="display:none;">
-      <h2>Information</h2>
+      <h2 data-i18n="sec-info">Information</h2>
       <div id="info-content"></div>
     </div>
 
     <!-- ── Export ─────────────────────────────────────────── -->
     <div class="panel-section">
-      <h2>Exporter la carte</h2>
+      <h2 data-i18n="sec-export">Exporter la carte</h2>
       <div class="export-row">
-        <button id="btn-png" class="dl-btn">⬇ PNG</button>
-        <button id="btn-pdf" class="dl-btn">⬇ PDF</button>
+        <button id="btn-png" class="dl-btn" data-i18n="btn-png">⬇ PNG</button>
+        <button id="btn-pdf" class="dl-btn" data-i18n="btn-pdf">⬇ PDF</button>
       </div>
       <div id="export-status" class="export-status"></div>
     </div>
