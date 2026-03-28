@@ -492,7 +492,7 @@ map.on('load', async () => {
   map.addLayer({id:'facilities-label',type:'symbol',source:'facilities',
     minzoom:11,
     layout:{
-      'text-field':['get','Aire'],
+      'text-field':['get','cat_name'],
       'text-size':10.5,'text-offset':[0,1.3],'text-anchor':'top',
       'text-max-width':10,'text-font':['Arial Unicode MS Regular'],
     },
