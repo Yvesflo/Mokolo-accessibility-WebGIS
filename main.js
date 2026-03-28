@@ -146,6 +146,12 @@ const rasterFilter = {
   population: { min: 0, max: 1000 },
 };
 
+// ── Analysis button active state ──────────────────────────────────────
+const analysisActive = { access: false, coverage: false, referral: false };
+
+// ── Currently selected aire de santé name (null = no spatial filter) ─
+let selectedAireName = null;
+
 // ── Color interpolation + filter ──────────────────────────────────────
 function interpStops(v, stops) {
   if (v == null || isNaN(v))                return [0,0,0,0];
@@ -280,6 +286,59 @@ map.on('load', async () => {
   try { settlements=await fetchJSON('./data/Settlements_Mokolo.geojson'); }
   catch { console.info('[settlements] File not found — layer skipped.'); }
 
+  // ── A2. Enrich GeoJSON with aire-level properties (before addSource) ─
+  // 1. Facility ID → Aire name lookup
+  const _facAireById = {};
+  facilities.features.forEach(f => {
+    if (f.properties.ID != null) _facAireById[f.properties.ID] = f.properties.Aire || null;
+  });
+  // 2. Tag each coverage zone with its facility's Aire name
+  coverage.features.forEach(f => {
+    const a = _facAireById[f.properties.ID];
+    if (a) f.properties.Aire = a;
+  });
+  // 3. Point-in-polygon (ray-casting)
+  function _pip(pt, ring) {
+    let inside = false;
+    for (let i=0, j=ring.length-1; i<ring.length; j=i++) {
+      const xi=ring[i][0],yi=ring[i][1],xj=ring[j][0],yj=ring[j][1];
+      if ((yi>pt[1])!==(yj>pt[1]) && pt[0]<(xj-xi)*(pt[1]-yi)/(yj-yi)+xi) inside=!inside;
+    }
+    return inside;
+  }
+  function _pipFeat(pt, feat) {
+    const {type,coordinates}=feat.geometry;
+    const polys=type==='Polygon'?[coordinates]:coordinates;
+    return polys.some(poly=>_pip(pt,poly[0])&&!poly.slice(1).some(h=>_pip(pt,h)));
+  }
+  // 4. Tag settlements with the admin_name of the aire they fall in
+  if (settlements) {
+    settlements.features.forEach(sf => {
+      const c=sf.geometry.coordinates;
+      const match=aires.features.find(af=>_pipFeat(c,af));
+      if (match) sf.properties.admin_name=match.properties.admin_name;
+    });
+  }
+  // 5. Tag referral routes with from_aire (nearest facility to route start)
+  function _routeStart(feat) {
+    const c=feat.geometry.coordinates;
+    return feat.geometry.type==='MultiLineString'?c[0][0]:c[0];
+  }
+  function _tagRoutes(routeFC) {
+    routeFC.features.forEach(rf => {
+      const start=_routeStart(rf);
+      if (!start) return;
+      let best=null, bestD=Infinity;
+      facilities.features.forEach(ff => {
+        const d=(start[0]-+ff.properties.Longitude)**2+(start[1]-+ff.properties.Latitude)**2;
+        if (d<bestD) { bestD=d; best=ff; }
+      });
+      if (best) rf.properties.from_aire=best.properties.Aire;
+    });
+  }
+  _tagRoutes(refCsiCma);
+  _tagRoutes(refCmaHd);
+
   // ── B. Sources ──────────────────────────────────────────────────────
   map.addSource('district',    {type:'geojson',data:district});
   map.addSource('aires',       {type:'geojson',data:aires});
@@ -413,26 +472,53 @@ map.on('load', async () => {
 
   // ── D. Layer toggles ────────────────────────────────────────────────
   const TOGGLE_MAP={
-    'toggle-accessibility' :['accessibility-raster'],
-    'toggle-residual'      :['residual-raster'],
-    'toggle-population'    :['population-raster'],
-    'toggle-coverage'      :['coverage-fill','coverage-outline'],
-    'toggle-ref-csi'       :['ref-csi-cma-line','ref-csi-cma-arrow'],
-    'toggle-ref-cma'       :['ref-cma-hd-line','ref-cma-hd-arrow'],
-    'toggle-facilities'    :['facilities-circle','facilities-label'],
-    'toggle-settlements'   :['sett-point','sett-label'],
-    'toggle-aires'         :['aires-fill','aires-outline','aires-label'],
-    'toggle-district'      :['district-fill','district-outline'],
+    'toggle-population'  :['population-raster'],
+    'toggle-facilities'  :['facilities-circle','facilities-label'],
+    'toggle-settlements' :['sett-point','sett-label'],
+    'toggle-aires'       :['aires-fill','aires-outline','aires-label'],
+    'toggle-district'    :['district-fill','district-outline'],
   };
   for (const [cbId,layerIds] of Object.entries(TOGGLE_MAP)) {
     const cb=document.getElementById(cbId);
     if (!cb) continue;
-    if (cbId==='toggle-accessibility'||cbId==='toggle-residual'||cbId==='toggle-population') cb.checked=false;
+    // Initial sync: apply checkbox state to layer visibility
+    const initVis=cb.checked?'visible':'none';
+    layerIds.forEach(id=>{ if(map.getLayer(id)) map.setLayoutProperty(id,'visibility',initVis); });
     cb.addEventListener('change',()=>{
       const vis=cb.checked?'visible':'none';
       layerIds.forEach(id=>{ if(map.getLayer(id)) map.setLayoutProperty(id,'visibility',vis); });
     });
   }
+
+  // ── Analysis buttons ─────────────────────────────────────────────────
+  // Each button toggles a group of layers + reveals its controls + legend.
+  const ANALYSIS_LAYERS={
+    access  :['accessibility-raster'],
+    coverage:['coverage-fill','coverage-outline','residual-raster'],
+    referral:['ref-csi-cma-line','ref-csi-cma-arrow','ref-cma-hd-line','ref-cma-hd-arrow'],
+  };
+  // Set initial state: hide all analysis layers
+  for (const ids of Object.values(ANALYSIS_LAYERS)) {
+    ids.forEach(id=>{ if(map.getLayer(id)) map.setLayoutProperty(id,'visibility','none'); });
+  }
+
+  function setAnalysis(key,active) {
+    analysisActive[key]=active;
+    const btn=document.getElementById('btn-analysis-'+key);
+    if (btn) btn.classList.toggle('active',active);
+    const ctrl=document.getElementById('analysis-'+key+'-controls');
+    if (ctrl) ctrl.style.display=active?'':'none';
+    const vis=active?'visible':'none';
+    (ANALYSIS_LAYERS[key]||[]).forEach(id=>{
+      if(map.getLayer(id)) map.setLayoutProperty(id,'visibility',vis);
+    });
+    const lb=document.getElementById('legend-block-'+key);
+    if (lb) lb.style.display=active?'':'none';
+  }
+  ['access','coverage','referral'].forEach(key=>{
+    const btn=document.getElementById('btn-analysis-'+key);
+    if(btn) btn.addEventListener('click',()=>setAnalysis(key,!analysisActive[key]));
+  });
 
   // ── E. Opacity sliders ──────────────────────────────────────────────
   function bindOpacity(sliderId,valId,layerId) {
@@ -519,8 +605,9 @@ map.on('load', async () => {
       paint:{'line-color':'#e94560','line-width':3,'line-dasharray':[3,2]}});
 
     const aireName = feat.properties.admin_name || feat.properties.Name || '';
+    selectedAireName = aireName;
 
-    // 2. Zoom to the selected aire (all other layers stay fully visible)
+    // 2. Zoom to the selected aire
     const coords = feat.geometry.type === 'MultiPolygon'
       ? feat.geometry.coordinates.flat(2)
       : feat.geometry.coordinates.flat(1);
@@ -531,18 +618,37 @@ map.on('load', async () => {
       { padding: 60, duration: 800 }
     );
 
-    // 3. Show badge
+    // 3. Filter all layers to this aire only
+    ['aires-fill','aires-outline','aires-label'].forEach(id=>{
+      if (map.getLayer(id)) map.setFilter(id,['==',['get','admin_name'],aireName]);
+    });
+    ['sett-point','sett-label'].forEach(id=>{
+      if (map.getLayer(id)) map.setFilter(id,['==',['get','admin_name'],aireName]);
+    });
+    applyFacFilter();
+    applyCovFilter();
+    applyRefTimeFilter();
+
+    // 4. Show badge
     if (filterBadge && filterLabel) {
       filterLabel.textContent = aireName;
       filterBadge.style.display = 'flex';
     }
   }
 
-  /** Remove highlight outline and hide badge */
+  /** Remove highlight outline, clear aire filter, restore category filters */
   function removeHighlight() {
     if (map.getLayer('hl'))  map.removeLayer('hl');
     if (map.getSource('hl')) map.removeSource('hl');
     if (filterBadge) filterBadge.style.display = 'none';
+    if (!selectedAireName) return;
+    selectedAireName = null;
+    ['aires-fill','aires-outline','aires-label','sett-point','sett-label'].forEach(id=>{
+      if (map.getLayer(id)) map.setFilter(id, null);
+    });
+    applyFacFilter();
+    applyCovFilter();
+    applyRefTimeFilter();
   }
 
   // ── H. Click / info handlers ────────────────────────────────────────
@@ -695,13 +801,13 @@ async function loadRasters() {
       source:'raster-access',
       paint:{'raster-opacity':0.75},layout:{visibility:'none'}
     },'aires-fill');
-    syncToggle('accessibility-raster','toggle-accessibility');
+    if (analysisActive.access) map.setLayoutProperty('accessibility-raster','visibility','visible');
 
     map.addLayer({id:'residual-raster',type:'raster',
       source:'raster-residual',
       paint:{'raster-opacity':0.75},layout:{visibility:'none'}
     },'aires-fill');
-    syncToggle('residual-raster','toggle-residual');
+    if (analysisActive.coverage) map.setLayoutProperty('residual-raster','visibility','visible');
 
     map.addLayer({id:'population-raster',type:'raster',
       source:'raster-population',
@@ -744,21 +850,30 @@ const REF_TIME_CLASSES={
   tInf:{label:'> 120 min', color:'#e74c3c',min:120, max:Infinity},
 };
 
+// ── Compose a category filter with the current aire spatial filter ─────
+function withAireFilt(base, aireField) {
+  if (!selectedAireName) return base;
+  const af=['==',['get',aireField],selectedAireName];
+  if (base===null) return af;                              // no cat filter → just aire
+  if (Array.isArray(base)&&base[0]==='=='&&base[1]===1&&base[2]===0) return base; // hide-all
+  return ['all',af,base];
+}
+
 function applyFacFilter() {
   const cats=[...activeFacCats].filter(c=>c!=='Autre');
   const hasOther=activeFacCats.has('Autre');
-  // MapLibre filter: show if cat_name is in active list OR (hasOther AND not in CATS keys)
-  let filt;
+  let base;
   if (activeFacCats.size===0) {
-    filt=['==',1,0]; // hide all
+    base=['==',1,0]; // hide all
   } else if (activeFacCats.size===Object.keys(CATS).length+1) {
-    filt=null; // all active, remove filter
+    base=null; // all cats active
   } else {
     const conditions=[];
     if (cats.length)  conditions.push(['in',['get','cat_name'],['literal',cats]]);
     if (hasOther)     conditions.push(['!',['in',['get','cat_name'],['literal',Object.keys(CATS)]]]);
-    filt=conditions.length===1?conditions[0]:['any',...conditions];
+    base=conditions.length===1?conditions[0]:['any',...conditions];
   }
+  const filt=withAireFilt(base,'Aire');
   ['facilities-circle','facilities-label'].forEach(id=>{
     if (!map.getLayer(id)) return;
     if (filt) map.setFilter(id,filt); else map.setFilter(id,null);
@@ -767,10 +882,11 @@ function applyFacFilter() {
 
 function applyCovFilter() {
   const cats=[...activeCovCats];
-  let filt=null;
-  if (cats.length===0) filt=['==',1,0];
+  let base=null;
+  if (cats.length===0) base=['==',1,0];
   else if (cats.length<Object.keys(CATS).length)
-    filt=['in',['get','cat_name'],['literal',cats]];
+    base=['in',['get','cat_name'],['literal',cats]];
+  const filt=withAireFilt(base,'Aire');
   ['coverage-fill','coverage-outline'].forEach(id=>{
     if (!map.getLayer(id)) return;
     if (filt) map.setFilter(id,filt); else map.setFilter(id,null);
@@ -778,18 +894,20 @@ function applyCovFilter() {
 }
 
 function applyRefTimeFilter() {
-  if (activeRefTime.size===4||activeRefTime.size===0) {
-    // all or none — let toggle handle none
-    ['ref-csi-cma-line','ref-csi-cma-arrow','ref-cma-hd-line','ref-cma-hd-arrow']
-      .forEach(id=>{ if(map.getLayer(id)) map.setFilter(id,activeRefTime.size?null:['==',1,0]); });
-    return;
+  let timeFilt;
+  if (activeRefTime.size===0) {
+    timeFilt=['==',1,0]; // hide all
+  } else if (activeRefTime.size===4) {
+    timeFilt=null; // all time classes active
+  } else {
+    const conditions=[];
+    if (activeRefTime.has('t30'))  conditions.push(['<=',['get','m'],30]);
+    if (activeRefTime.has('t60'))  conditions.push(['all',['>' ,['get','m'],30],['<=',['get','m'],60]]);
+    if (activeRefTime.has('t120')) conditions.push(['all',['>' ,['get','m'],60],['<=',['get','m'],120]]);
+    if (activeRefTime.has('tInf')) conditions.push(['>',['get','m'],120]);
+    timeFilt=conditions.length===1?conditions[0]:['any',...conditions];
   }
-  const conditions=[];
-  if (activeRefTime.has('t30'))  conditions.push(['<=',['get','m'],30]);
-  if (activeRefTime.has('t60'))  conditions.push(['all',['>' ,['get','m'],30],['<=',['get','m'],60]]);
-  if (activeRefTime.has('t120')) conditions.push(['all',['>' ,['get','m'],60],['<=',['get','m'],120]]);
-  if (activeRefTime.has('tInf')) conditions.push(['>',['get','m'],120]);
-  const filt=conditions.length===1?conditions[0]:['any',...conditions];
+  const filt=withAireFilt(timeFilt,'from_aire');
   ['ref-csi-cma-line','ref-csi-cma-arrow','ref-cma-hd-line','ref-cma-hd-arrow'].forEach(id=>{
     if (map.getLayer(id)) map.setFilter(id,filt);
   });
@@ -834,15 +952,12 @@ function buildLegends() {
   accLbls.className='legend-ramp-labels';accLbls.id='lbl-access';
   accLbls.innerHTML='<span>0 min</span><span>—</span><span>240 min</span>';
   accBk.appendChild(accLbls);
-  el.appendChild(accBk);
-
-  const resBk=section('Population résiduelle non couverte');
-  resBk.appendChild(buildColorRamp(STOPS_RESID));
-  const resLbls=document.createElement('div');
-  resLbls.className='legend-ramp-labels';resLbls.id='lbl-residual';
-  resLbls.innerHTML='<span>0</span><span>—</span><span>max</span>';
-  resBk.appendChild(resLbls);
-  el.appendChild(resBk);
+  // Wrap in analysis block (hidden until analysis is active)
+  const accessLegendBlock=document.createElement('div');
+  accessLegendBlock.id='legend-block-access';
+  accessLegendBlock.style.display='none';
+  accessLegendBlock.appendChild(accBk);
+  el.appendChild(accessLegendBlock);
 
   const popBk=section('Densité de population (hab/km²)');
   popBk.appendChild(buildColorRamp(STOPS_POP));
@@ -877,6 +992,19 @@ function buildLegends() {
   });
   el.appendChild(facBk);
 
+  // ── Coverage legend block (hidden until coverage analysis active) ──
+  const coverageLegendBlock=document.createElement('div');
+  coverageLegendBlock.id='legend-block-coverage';
+  coverageLegendBlock.style.display='none';
+
+  const resBk=section('Population résiduelle non couverte');
+  resBk.appendChild(buildColorRamp(STOPS_RESID));
+  const resLbls=document.createElement('div');
+  resLbls.className='legend-ramp-labels';resLbls.id='lbl-residual';
+  resLbls.innerHTML='<span>0</span><span>—</span><span>max</span>';
+  resBk.appendChild(resLbls);
+  coverageLegendBlock.appendChild(resBk);
+
   // ── Coverage zones — clickable by category ──
   const covBk=section('Zones de couverture hospitalière');
   Object.entries(CATS).forEach(([k,v])=>{
@@ -898,7 +1026,8 @@ function buildLegends() {
     });
     covBk.appendChild(row);
   });
-  el.appendChild(covBk);
+  coverageLegendBlock.appendChild(covBk);
+  el.appendChild(coverageLegendBlock);
 
   // ── Referral routes — clickable by time class ──
   const refBk=section('Routes de référence — temps de trajet');
@@ -940,7 +1069,12 @@ function buildLegends() {
     r.innerHTML=svg+'<span>'+label+'</span>';
     refBk.appendChild(r);
   });
-  el.appendChild(refBk);
+  // Wrap in analysis block (hidden until referral analysis active)
+  const referralLegendBlock=document.createElement('div');
+  referralLegendBlock.id='legend-block-referral';
+  referralLegendBlock.style.display='none';
+  referralLegendBlock.appendChild(refBk);
+  el.appendChild(referralLegendBlock);
 
   // ── Settlements ──
   const settBk=section('Localités');

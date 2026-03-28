@@ -28,56 +28,6 @@
     <div class="panel-section">
       <h2>Couches</h2>
 
-      <!-- Accessibility raster -->
-      <div class="raster-block">
-        <label class="toggle-row">
-          <input type="checkbox" id="toggle-accessibility" />
-          <span class="toggle-label">Accessibilité (temps de trajet)</span>
-        </label>
-        <div class="raster-controls">
-          <div class="ctrl-row">
-            <span class="ctrl-label">Opacité</span>
-            <input type="range" id="opacity-accessibility" min="0" max="100" value="80" class="slider" />
-            <span class="ctrl-val" id="opacity-val-accessibility">80%</span>
-          </div>
-          <div class="ctrl-row">
-            <span class="ctrl-label">Min (min)</span>
-            <input type="range" id="filter-access-min" min="0" max="240" value="0" class="slider" />
-            <span class="ctrl-val" id="fval-access-min">0</span>
-          </div>
-          <div class="ctrl-row">
-            <span class="ctrl-label">Max (min)</span>
-            <input type="range" id="filter-access-max" min="0" max="240" value="240" class="slider" />
-            <span class="ctrl-val" id="fval-access-max">240</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Residual population raster -->
-      <div class="raster-block">
-        <label class="toggle-row">
-          <input type="checkbox" id="toggle-residual" />
-          <span class="toggle-label">Population résiduelle non couverte</span>
-        </label>
-        <div class="raster-controls">
-          <div class="ctrl-row">
-            <span class="ctrl-label">Opacité</span>
-            <input type="range" id="opacity-residual" min="0" max="100" value="80" class="slider" />
-            <span class="ctrl-val" id="opacity-val-residual">80%</span>
-          </div>
-          <div class="ctrl-row">
-            <span class="ctrl-label">Min (hab)</span>
-            <input type="range" id="filter-resid-min" min="0" max="700" value="0" class="slider" />
-            <span class="ctrl-val" id="fval-resid-min">0</span>
-          </div>
-          <div class="ctrl-row">
-            <span class="ctrl-label">Max (hab)</span>
-            <input type="range" id="filter-resid-max" min="0" max="700" value="700" class="slider" />
-            <span class="ctrl-val" id="fval-resid-max">700</span>
-          </div>
-        </div>
-      </div>
-
       <!-- Population density raster -->
       <div class="raster-block">
         <label class="toggle-row">
@@ -103,36 +53,95 @@
         </div>
       </div>
 
-      <span id="raster-loading" class="raster-loading-badge" style="display:none;">⏳ Chargement rasters…</span>
-
       <label class="toggle-row">
-        <input type="checkbox" id="toggle-coverage" checked />
-        <span class="toggle-label">Zones de couverture hospitalière</span>
-      </label>
-      <label class="toggle-row">
-        <input type="checkbox" id="toggle-ref-csi" checked />
-        <span class="toggle-label">Routes de référence CSI → CMA</span>
-      </label>
-      <label class="toggle-row">
-        <input type="checkbox" id="toggle-ref-cma" checked />
-        <span class="toggle-label">Routes de référence CMA → HD/HR</span>
-      </label>
-      <label class="toggle-row">
-        <input type="checkbox" id="toggle-facilities" checked />
+        <input type="checkbox" id="toggle-facilities" />
         <span class="toggle-label">Établissements de santé</span>
       </label>
       <label class="toggle-row">
-        <input type="checkbox" id="toggle-settlements" checked />
+        <input type="checkbox" id="toggle-settlements" />
         <span class="toggle-label">Localités / Agglomérations</span>
       </label>
       <label class="toggle-row">
-        <input type="checkbox" id="toggle-aires" checked />
+        <input type="checkbox" id="toggle-aires" />
         <span class="toggle-label">Aires de santé</span>
       </label>
       <label class="toggle-row">
         <input type="checkbox" id="toggle-district" checked />
         <span class="toggle-label">Limite du district</span>
       </label>
+    </div>
+
+    <!-- ── Analyses ────────────────────────────────────────── -->
+    <div class="panel-section">
+      <h2>Analyses</h2>
+      <span id="raster-loading" class="raster-loading-badge" style="display:none;">⏳ Chargement rasters…</span>
+
+      <!-- Accessibility analysis -->
+      <div class="analysis-block">
+        <button class="analysis-btn" id="btn-analysis-access">
+          <span class="analysis-btn-label">
+            <span class="analysis-btn-title">Accessibilité</span>
+            <span class="analysis-btn-sub">Temps de trajet aux soins</span>
+          </span>
+          <span class="analysis-btn-chevron">▶</span>
+        </button>
+        <div class="analysis-controls" id="analysis-access-controls" style="display:none;">
+          <div class="ctrl-row">
+            <span class="ctrl-label">Opacité</span>
+            <input type="range" id="opacity-accessibility" min="0" max="100" value="80" class="slider" />
+            <span class="ctrl-val" id="opacity-val-accessibility">80%</span>
+          </div>
+          <div class="ctrl-row">
+            <span class="ctrl-label">Min (min)</span>
+            <input type="range" id="filter-access-min" min="0" max="240" value="0" class="slider" />
+            <span class="ctrl-val" id="fval-access-min">0</span>
+          </div>
+          <div class="ctrl-row">
+            <span class="ctrl-label">Max (min)</span>
+            <input type="range" id="filter-access-max" min="0" max="240" value="240" class="slider" />
+            <span class="ctrl-val" id="fval-access-max">240</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Coverage analysis -->
+      <div class="analysis-block">
+        <button class="analysis-btn" id="btn-analysis-coverage">
+          <span class="analysis-btn-label">
+            <span class="analysis-btn-title">Couverture</span>
+            <span class="analysis-btn-sub">Zones hospitalières · Pop. résiduelle</span>
+          </span>
+          <span class="analysis-btn-chevron">▶</span>
+        </button>
+        <div class="analysis-controls" id="analysis-coverage-controls" style="display:none;">
+          <div class="ctrl-row">
+            <span class="ctrl-label">Opacité (résid.)</span>
+            <input type="range" id="opacity-residual" min="0" max="100" value="80" class="slider" />
+            <span class="ctrl-val" id="opacity-val-residual">80%</span>
+          </div>
+          <div class="ctrl-row">
+            <span class="ctrl-label">Min (hab)</span>
+            <input type="range" id="filter-resid-min" min="0" max="700" value="0" class="slider" />
+            <span class="ctrl-val" id="fval-resid-min">0</span>
+          </div>
+          <div class="ctrl-row">
+            <span class="ctrl-label">Max (hab)</span>
+            <input type="range" id="filter-resid-max" min="0" max="700" value="700" class="slider" />
+            <span class="ctrl-val" id="fval-resid-max">700</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Referral routes analysis -->
+      <div class="analysis-block">
+        <button class="analysis-btn" id="btn-analysis-referral">
+          <span class="analysis-btn-label">
+            <span class="analysis-btn-title">Routes de référence</span>
+            <span class="analysis-btn-sub">CSI → CMA · CMA → HD/HR</span>
+          </span>
+          <span class="analysis-btn-chevron">▶</span>
+        </button>
+      </div>
     </div>
 
     <!-- ── Search aire de santé ────────────────────────────── -->

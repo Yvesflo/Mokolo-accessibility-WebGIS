@@ -153,6 +153,49 @@ body {
 .info-label { color:#6e7681; }
 .info-val { color:#c8d6e5; font-weight:600; }
 
+/* ═══ Analysis buttons ══════════════════════════════════════════ */
+.analysis-block { margin-bottom:8px; }
+
+.analysis-btn {
+  width:100%; display:flex; align-items:center; gap:10px;
+  padding:9px 12px;
+  background:#0f3460; border:1px solid #1a4a8a;
+  border-radius:8px; color:#c8d6e5; cursor:pointer;
+  text-align:left;
+  transition:background .15s, border-color .15s;
+}
+.analysis-btn:hover { background:#153d72; border-color:#2a5a9a; }
+.analysis-btn.active {
+  background:#1a2e5a; border-color:#e94560; color:#fff;
+}
+
+.analysis-btn-label { flex:1; min-width:0; }
+.analysis-btn-title {
+  display:block; font-size:12.5px; font-weight:600;
+}
+.analysis-btn-sub {
+  display:block; font-size:10px; color:#6e7681;
+  margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.analysis-btn.active .analysis-btn-sub { color:#a0b4cc; }
+
+.analysis-btn-chevron {
+  font-size:10px; color:#556; flex-shrink:0;
+  transition:transform .2s;
+}
+.analysis-btn.active .analysis-btn-chevron {
+  transform:rotate(90deg); color:#e94560;
+}
+
+.analysis-controls {
+  margin:0 0 0 12px;
+  padding:6px 8px;
+  background:rgba(15,52,96,0.4);
+  border-radius:0 0 6px 6px;
+  border-left:2px solid #e94560;
+  display:flex; flex-direction:column; gap:3px;
+}
+
 /* ═══ Export ════════════════════════════════════════════════════ */
 .export-row { display:flex; gap:8px; margin-bottom:6px; }
 .dl-btn {
